@@ -1,0 +1,53 @@
+name: Tests
+
+# Run on every push and every pull request, on any branch
+on:
+  push:
+  pull_request:
+
+jobs:
+  flask-tests:
+    name: Flask app tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flask-app
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: flask-app/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest -v
+
+  fastapi-tests:
+    name: FastAPI app tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fastapi-app
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: fastapi-app/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest -v
