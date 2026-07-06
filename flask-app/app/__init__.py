@@ -11,7 +11,7 @@ def create_app(config_name: str = None):
     app = Flask(__name__)
     app.config.from_object(get_config(config_name))
 
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, origins="*")
 
     db.init_app(app)
     configure_logging(app)
