@@ -1,5 +1,6 @@
 """Flask application factory."""
 from flask import Flask
+from flask_cors import CORS
 from app.config import get_config
 from app.extensions import db
 from app.utils.logger import configure_logging
@@ -9,6 +10,8 @@ from app.utils.responses import error_response
 def create_app(config_name: str = None):
     app = Flask(__name__)
     app.config.from_object(get_config(config_name))
+
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     db.init_app(app)
     configure_logging(app)

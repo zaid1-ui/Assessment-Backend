@@ -1,6 +1,7 @@
 """FastAPI application entrypoint."""
 import logging
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Task Management API (FastAPI)", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(users.router)
 app.include_router(projects.router)
