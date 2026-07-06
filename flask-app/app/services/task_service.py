@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from app.extensions import db
 from app.models.task import Task
 from app.models.project import Project
@@ -7,9 +8,15 @@ class TaskService:
     def get_task(self, task_id):
         return Task.query.get(task_id)
 
-    def build_filtered_query(self, args):
-        """Filtering + searching used by the list endpoint."""
-        query = Task.query
+    def build_filtered_query(self, args, user_id):
+        """Filtering + searching used by the list endpoint.
+
+        Scoped to the logged-in user: only tasks in projects they own,
+        plus tasks assigned to them.
+        """
+        query = Task.query.join(Project, Task.project_id == Project.id).filter(
+            or_(Project.owner_id == user_id, Task.assignee_id == user_id)
+        )
 
         status = args.get("status")
         if status:

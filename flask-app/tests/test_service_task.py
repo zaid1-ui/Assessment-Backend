@@ -28,7 +28,7 @@ def test_create_and_filter_tasks(app, project):
     service.create_task({"title": "Write tests", "project_id": project.id, "status": "todo"})
     service.create_task({"title": "Fix bug", "project_id": project.id, "status": "done"})
 
-    query = service.build_filtered_query({"status": "done"})
+    query = service.build_filtered_query({"status": "done"}, user_id=project.owner_id)
     results = query.all()
     assert len(results) == 1
     assert results[0].title == "Fix bug"
@@ -39,7 +39,7 @@ def test_search_by_title(app, project):
     service.create_task({"title": "Refactor auth module", "project_id": project.id})
     service.create_task({"title": "Update docs", "project_id": project.id})
 
-    query = service.build_filtered_query({"search": "auth"})
+    query = service.build_filtered_query({"search": "auth"}, user_id=project.owner_id)
     results = query.all()
     assert len(results) == 1
     assert "auth" in results[0].title.lower()

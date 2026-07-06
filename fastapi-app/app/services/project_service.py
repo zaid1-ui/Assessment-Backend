@@ -8,18 +8,19 @@ class ProjectService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def list_projects(self):
-        result = await self.db.execute(select(Project).order_by(Project.id))
+    async def list_projects(self, owner_id: int):
+        """Scoped: a user only ever sees their own projects."""
+        result = await self.db.execute(
+            select(Project).where(Project.owner_id == owner_id).order_by(Project.id)
+        )
         return result.scalars().all()
 
     async def get_project(self, project_id: int):
         return await self.db.get(Project, project_id)
 
-    async def create_project(self, data) -> Project:
-        owner = await self.db.get(User, data.owner_id)
-        if not owner:
-            raise ValueError("owner_id does not reference an existing user")
-        project = Project(name=data.name, description=data.description, owner_id=data.owner_id)
+    async def create_project(self, data, owner_id: int) -> Project:
+        """owner_id comes from the authenticated session, not client input."""
+        project = Project(name=data.name, description=data.description, owner_id=owner_id)
         self.db.add(project)
         await self.db.commit()
         await self.db.refresh(project)

@@ -16,6 +16,10 @@ class UserService:
     async def get_user(self, user_id: int):
         return await self.db.get(User, user_id)
 
+    async def get_user_by_username(self, username: str):
+        result = await self.db.execute(select(User).where(User.username == username))
+        return result.scalar_one_or_none()
+
     async def create_user(self, data) -> User:
         user = User(
             username=data.username,

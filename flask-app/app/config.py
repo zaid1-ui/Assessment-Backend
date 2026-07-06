@@ -1,5 +1,6 @@
 """Configuration layer - environment based settings, no hardcoded secrets."""
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,6 +8,11 @@ load_dotenv()
 
 class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-please-override")
+    # Session cookie hardening
+    SESSION_COOKIE_HTTPONLY = True          # not readable from JavaScript
+    SESSION_COOKIE_SAMESITE = "Lax"         # basic CSRF mitigation
+    SESSION_COOKIE_SECURE = False           # set True in production (HTTPS only)
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
     PAGE_SIZE_DEFAULT = 20
@@ -26,6 +32,7 @@ class TestingConfig(BaseConfig):
 
 class ProductionConfig(BaseConfig):
     DEBUG = False
+    SESSION_COOKIE_SECURE = True
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
 
     def __init__(self):

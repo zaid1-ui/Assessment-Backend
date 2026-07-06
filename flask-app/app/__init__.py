@@ -11,7 +11,13 @@ def create_app(config_name: str = None):
     app = Flask(__name__)
     app.config.from_object(get_config(config_name))
 
-    CORS(app, origins="*")
+    # Credentialed (cookie) requests are not allowed with a wildcard origin,
+    # so we allow any localhost/127.0.0.1 origin during development.
+    CORS(
+        app,
+        origins=[r"http://localhost(:\d+)?", r"http://127\.0\.0\.1(:\d+)?"],
+        supports_credentials=True,
+    )
 
     db.init_app(app)
     configure_logging(app)
@@ -33,8 +39,9 @@ def create_app(config_name: str = None):
 
 
 def register_blueprints(app):
-    from app.routes import user_routes, project_routes, task_routes, comment_routes, report_routes
+    from app.routes import auth_routes, user_routes, project_routes, task_routes, comment_routes, report_routes
 
+    app.register_blueprint(auth_routes.bp)
     app.register_blueprint(user_routes.bp)
     app.register_blueprint(project_routes.bp)
     app.register_blueprint(task_routes.bp)

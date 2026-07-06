@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.dependencies import DbSession, AuthSvc
+from app.dependencies import CurrentUserId, DbSession, AuthSvc
 from app.schemas.user import UserCreate, UserUpdate, UserOut
 from app.schemas.common import ApiResponse
 from app.services.user_service import UserService
@@ -32,7 +32,10 @@ async def create_user(payload: UserCreate, db: DbSession, auth: AuthSvc):
 
 
 @router.patch("/{user_id}", response_model=ApiResponse[UserOut])
-async def update_user(user_id: int, payload: UserUpdate, db: DbSession, auth: AuthSvc):
+async def update_user(user_id: int, payload: UserUpdate, db: DbSession, auth: AuthSvc,
+                      current_user_id: CurrentUserId):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="You can only update your own account")
     user = await get_service(db, auth).update_user(user_id, payload)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -40,7 +43,10 @@ async def update_user(user_id: int, payload: UserUpdate, db: DbSession, auth: Au
 
 
 @router.delete("/{user_id}", response_model=ApiResponse)
-async def delete_user(user_id: int, db: DbSession, auth: AuthSvc):
+async def delete_user(user_id: int, db: DbSession, auth: AuthSvc,
+                      current_user_id: CurrentUserId):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="You can only delete your own account")
     ok = await get_service(db, auth).delete_user(user_id)
     if not ok:
         raise HTTPException(status_code=404, detail="User not found")

@@ -5,13 +5,13 @@
 
    - Response envelope: {success, message, data, meta?}
    - Update method: PATCH everywhere (tasks also accept PUT)
-   - Users & Projects lists: NOT paginated, NOT searchable (full array)
+   - Projects/tasks/comments are scoped to the logged-in user (owner or\n     task assignee); lists return 401 when logged out\n   - Users & Projects lists: NOT paginated, NOT searchable (full array)
    - Tasks list: paginated + searchable (title only) + filterable
      (status, priority, project_id, assignee_id) + sortable (any Task
      column, "-" prefix = desc)
    - Comments: listable ONLY per-task via GET /tasks/{id}/comments.
      No global list, no update endpoint, no pagination.
-   - Project edit cannot change owner_id (schema excludes it)
+   - Session auth: POST /auth/login sets an httpOnly cookie; project\n     create/update/delete require login, owner enforced server-side\n   - Project edit cannot change owner_id (schema excludes it)
    - User edit cannot change password (schema excludes it)
    - Validation errors differ by backend:
        Flask   -> { errors: { field: [msg, ...] } }
@@ -74,13 +74,7 @@ const ENTITIES = {
       create: [
         { key: "name", label: "Name", type: "text", required: true },
         { key: "description", label: "Description", type: "textarea" },
-        {
-          key: "owner_id",
-          label: "Owner",
-          type: "select-remote",
-          source: "users",
-          required: true,
-        },
+        // owner_id removed: the backend assigns the logged-in user as owner.
       ],
       edit: [
         { key: "name", label: "Name", type: "text", required: true },
@@ -240,13 +234,7 @@ const ENTITIES = {
           source: "tasks",
           required: true,
         },
-        {
-          key: "author_id",
-          label: "Author",
-          type: "select-remote",
-          source: "users",
-          required: true,
-        },
+        // author_id removed: the backend assigns the logged-in user as author.
       ],
       edit: [],
     },
@@ -296,6 +284,7 @@ async function apiFetch(path, { method = "GET", body } = {}) {
   const res = await fetch(baseUrl() + path, {
     method,
     headers: { "Content-Type": "application/json" },
+    credentials: "include", // send/receive the session cookie
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -754,8 +743,78 @@ async function switchEntity(entity) {
   loadAndRender();
 }
 
+// ---------------------------------------------------------------------
+// Session auth
+// ---------------------------------------------------------------------
+let currentUser = null;
+
+function renderAuthState() {
+  const loggedOut = document.getElementById("authLoggedOut");
+  const loggedIn = document.getElementById("authLoggedIn");
+  if (currentUser) {
+    loggedOut.classList.add("hidden");
+    loggedIn.classList.remove("hidden");
+    document.getElementById("authUserLabel").textContent =
+      `${currentUser.username} (#${currentUser.id})`;
+  } else {
+    loggedOut.classList.remove("hidden");
+    loggedIn.classList.add("hidden");
+  }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  if (!msg) return el.classList.add("hidden");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+async function refreshSession() {
+  try {
+    const res = await apiFetch("/auth/me");
+    currentUser = res.data;
+  } catch {
+    currentUser = null;
+  }
+  renderAuthState();
+}
+
+async function login() {
+  showAuthError(null);
+  const username = document.getElementById("authUsername").value.trim();
+  const password = document.getElementById("authPassword").value;
+  if (!username || !password) return showAuthError("username and password required");
+  try {
+    const res = await apiFetch("/auth/login", { method: "POST", body: { username, password } });
+    currentUser = res.data;
+    document.getElementById("authPassword").value = "";
+    renderAuthState();
+    Object.keys(optionsCache).forEach(invalidateOptions);
+    loadAndRender(); // data is per-user now
+  } catch (err) {
+    showAuthError(err.message);
+  }
+}
+
+async function logout() {
+  try {
+    await apiFetch("/auth/logout", { method: "POST" });
+  } catch { /* session may already be gone */ }
+  currentUser = null;
+  renderAuthState();
+  Object.keys(optionsCache).forEach(invalidateOptions);
+  loadAndRender(); // lists now return 401 / empty
+}
+
 function init() {
   document.getElementById("backendSelect").value = currentBackend;
+
+  document.getElementById("loginBtn").addEventListener("click", login);
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("authPassword").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") login();
+  });
+  refreshSession();
 
   document
     .querySelectorAll(".nav-item")
@@ -767,6 +826,7 @@ function init() {
     currentBackend = e.target.value;
     safeSet("backend", currentBackend);
     Object.keys(optionsCache).forEach(invalidateOptions);
+    refreshSession();
     loadAndRender();
   });
 

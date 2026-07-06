@@ -4,7 +4,7 @@ from functools import lru_cache
 from sqlalchemy import select, create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi import APIRouter, HTTPException
-from app.dependencies import DbSession
+from app.dependencies import CurrentUserId, DbSession
 from app.schemas.common import ApiResponse
 from app.models.project import Project
 from app.models.task import Task
@@ -26,7 +26,7 @@ def _sync_session_factory():
 
 
 @router.get("/sync/projects/{project_id}", response_model=ApiResponse)
-def project_report_sync(project_id: int):
+def project_report_sync(project_id: int, user_id: CurrentUserId):
     """Synchronous endpoint (plain `def`). FastAPI runs this in an external
     threadpool, so it doesn't block the event loop, but the call itself
     blocks that worker thread for its full duration - unlike the async
@@ -36,14 +36,21 @@ def project_report_sync(project_id: int):
         project = session.get(Project, project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+        if project.owner_id != user_id:
+            raise HTTPException(status_code=403, detail="You do not own this project")
         tasks = session.execute(select(Task).where(Task.project_id == project_id)).scalars().all()
         report = generate_project_report_sync_blocking(project, tasks)
     return ApiResponse(message="Report generated (sync)", data=report)
 
 
 @router.get("/async/projects/{project_id}", response_model=ApiResponse)
-async def project_report_async(project_id: int, db: DbSession):
+async def project_report_async(project_id: int, db: DbSession, user_id: CurrentUserId):
     """Asynchronous endpoint (`async def`) - non-blocking I/O throughout."""
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="You do not own this project")
     try:
         report = await generate_project_report_async(db, project_id)
     except ValueError as e:

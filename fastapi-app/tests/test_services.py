@@ -41,7 +41,7 @@ async def test_create_and_filter_tasks(db_session):
     await service.create_task(TaskCreate(title="Write tests", project_id=project.id, status="todo"))
     await service.create_task(TaskCreate(title="Fix bug", project_id=project.id, status="done"))
 
-    stmt = service.build_filtered_stmt({"status": "done"})
+    stmt = service.build_filtered_stmt({"status": "done"}, user_id=project.owner_id)
     result = await db_session.execute(stmt)
     tasks = result.scalars().all()
     assert len(tasks) == 1

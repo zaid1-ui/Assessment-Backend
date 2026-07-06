@@ -9,8 +9,15 @@ def _create_user(client):
     return resp.get_json()["data"]
 
 
-def _create_project(client, owner_id):
-    resp = client.post("/api/projects", json={"name": "Test Project", "owner_id": owner_id})
+def _login(client, username="dave", password="supersecret"):
+    resp = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert resp.status_code == 200
+    return resp.get_json()["data"]
+
+
+def _create_project(client, owner_id=None):
+    # owner_id is ignored by the API now; the owner is the session user.
+    resp = client.post("/api/projects", json={"name": "Test Project"})
     return resp.get_json()["data"]
 
 
@@ -27,7 +34,8 @@ def test_create_user_validation_error(client):
 
 def test_full_task_crud_flow(client):
     user = _create_user(client)
-    project = _create_project(client, user["id"])
+    _login(client)
+    project = _create_project(client)
 
     create_resp = client.post("/api/tasks", json={
         "title": "Implement login", "project_id": project["id"], "priority": "high"
@@ -52,7 +60,8 @@ def test_full_task_crud_flow(client):
 
 def test_task_list_filter_search_pagination(client):
     user = _create_user(client)
-    project = _create_project(client, user["id"])
+    _login(client)
+    project = _create_project(client)
     for i in range(5):
         client.post("/api/tasks", json={
             "title": f"Task number {i}", "project_id": project["id"],
@@ -68,7 +77,8 @@ def test_task_list_filter_search_pagination(client):
 
 def test_report_generation(client):
     user = _create_user(client)
-    project = _create_project(client, user["id"])
+    _login(client)
+    project = _create_project(client)
     client.post("/api/tasks", json={"title": "T1", "project_id": project["id"]})
 
     resp = client.get(f"/api/reports/projects/{project['id']}")

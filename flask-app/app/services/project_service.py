@@ -4,20 +4,19 @@ from app.models.user import User
 
 
 class ProjectService:
-    def list_projects(self):
-        return Project.query.order_by(Project.id).all()
+    def list_projects(self, owner_id):
+        """Scoped: a user only ever sees their own projects."""
+        return Project.query.filter_by(owner_id=owner_id).order_by(Project.id).all()
 
     def get_project(self, project_id):
         return Project.query.get(project_id)
 
-    def create_project(self, data):
-        owner = User.query.get(data["owner_id"])
-        if not owner:
-            raise ValueError("owner_id does not reference an existing user")
+    def create_project(self, data, owner_id):
+        """owner_id comes from the authenticated session, not client input."""
         project = Project(
             name=data["name"],
             description=data.get("description"),
-            owner_id=data["owner_id"],
+            owner_id=owner_id,
         )
         db.session.add(project)
         db.session.commit()

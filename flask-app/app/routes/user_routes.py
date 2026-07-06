@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from marshmallow import ValidationError
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserCreateSchema, UserUpdateSchema
+from app.utils.auth import current_user_id, login_required, logout_user
 from app.utils.responses import success_response, error_response
 
 bp = Blueprint("users", __name__, url_prefix="/api/users")
@@ -33,7 +34,10 @@ def create_user():
 
 
 @bp.patch("/<int:user_id>")
+@login_required
 def update_user(user_id):
+    if user_id != current_user_id():
+        return error_response("You can only update your own account", 403)
     try:
         data = UserUpdateSchema().load(request.get_json(force=True) or {}, partial=True)
     except ValidationError as err:
@@ -45,8 +49,12 @@ def update_user(user_id):
 
 
 @bp.delete("/<int:user_id>")
+@login_required
 def delete_user(user_id):
+    if user_id != current_user_id():
+        return error_response("You can only delete your own account", 403)
     ok = service.delete_user(user_id)
     if not ok:
         return error_response("User not found", 404)
+    logout_user()  # the account behind this session no longer exists
     return success_response(None, "User deleted", 200)

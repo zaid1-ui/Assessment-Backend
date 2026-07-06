@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str | None = None
-    owner_id: int
+    # owner_id intentionally removed: the owner is always the logged-in user.
 
 
 class ProjectUpdate(BaseModel):

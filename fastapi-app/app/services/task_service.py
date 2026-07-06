@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.task import Task
 from app.models.project import Project
@@ -11,9 +11,15 @@ class TaskService:
     async def get_task(self, task_id: int):
         return await self.db.get(Task, task_id)
 
-    def build_filtered_stmt(self, params: dict):
-        """Filtering + searching, mirrors the Flask implementation."""
-        stmt = select(Task)
+    def build_filtered_stmt(self, params: dict, user_id: int):
+        """Filtering + searching, mirrors the Flask implementation.
+
+        Scoped to the logged-in user: only tasks in projects they own,
+        plus tasks assigned to them.
+        """
+        stmt = select(Task).join(Project, Task.project_id == Project.id).where(
+            or_(Project.owner_id == user_id, Task.assignee_id == user_id)
+        )
 
         if params.get("status"):
             stmt = stmt.where(Task.status == params["status"])

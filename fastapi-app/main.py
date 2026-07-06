@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.database import init_db
 from app.utils.logger import configure_logging
-from app.routers import users, projects, tasks, comments, reports
+from app.routers import auth, users, projects, tasks, comments, reports
 
 settings = get_settings()
 logger = configure_logging(settings.log_level)
@@ -24,13 +24,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Task Management API (FastAPI)", version="1.0.0", lifespan=lifespan)
 
+# Credentialed (cookie) requests are not allowed with a wildcard origin,
+# so we allow any localhost/127.0.0.1 origin during development.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
